@@ -25,7 +25,7 @@ function App() {
           .getUserMedia({
             video: {
               deviceId: camera.deviceId,
-              facingMode: ["user", "environment"],
+              facingMode: "environment",
               height: { ideal: 1080 },
               width: { ideal: 1920 },
             },
@@ -34,8 +34,8 @@ function App() {
             const track = stream.getVideoTracks()[0];
 
             //Create image capture object and get camera capabilities
-            const _imageCapture = new ImageCapture(track);
-            _imageCapture.getPhotoCapabilities().then(() => {
+            const imageCapture = new ImageCapture(track);
+            imageCapture.getPhotoCapabilities().then(() => {
               //let there be light!
               trackRef.current = track;
             });

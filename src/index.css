@@ -12,10 +12,7 @@ body {
   background-color: #222;
 }
 
-button {
-  border: none;
-  padding: 1em 2em;
-  background-color: gold;
-  color: #222;
-  border-radius: 0.6em;
+.trigger {
+  width: 100vw;
+  height: 100vh;
 }

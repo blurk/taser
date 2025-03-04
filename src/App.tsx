@@ -3,9 +3,131 @@ import { useEffect, useRef } from "react";
 const SUPPORTS_MEDIA_DEVICES = "mediaDevices" in navigator;
 
 function App() {
-  const ref = useRef<HTMLAudioElement | null>(null);
+  // Define typed refs
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
-  const trackRef = useRef<MediaStreamTrack>(null);
+  const mediaStreamTrackRef = useRef<MediaStreamTrack | null>(null);
+
+  // Function to update background with frequency-based flashing
+  const flashBackground = () => {
+    const analyser = analyserRef.current;
+    if (!analyser) return;
+
+    if (!mediaStreamTrackRef.current) return;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+
+    // Calculate average frequency intensity for flash effect
+    const average =
+      dataArray.reduce((sum: number, value: number) => sum + value, 0) /
+      bufferLength;
+    const intensity = Math.min(average * 2, 255); // Scale and cap at 255
+
+    // Create a taser-like flashing effect (blue-white pulses)
+    const flashColor =
+      intensity > 100
+        ? `rgb(${intensity}, ${intensity}, 255)`
+        : `rgb(0, 0, ${intensity})`;
+    document.body.style.backgroundColor = flashColor;
+    mediaStreamTrackRef.current.applyConstraints({
+      advanced: [{ torch: true }],
+    });
+
+    // Reset to a dark base color briefly for contrast (taser flicker)
+    setTimeout(() => {
+      document.body.style.backgroundColor = "#1a1a1a"; // Dark gray base
+
+      mediaStreamTrackRef.current?.applyConstraints({
+        advanced: [{ torch: false }],
+      });
+    }, 50); // Short delay for flicker effect
+
+    // Keep the animation running
+    animationFrameRef.current = requestAnimationFrame(flashBackground);
+  };
+
+  useEffect(() => {
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
+
+    // Initialize AudioContext and nodes
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+    const audioContext = audioContextRef.current;
+
+    if (!mediaSourceRef.current) {
+      try {
+        mediaSourceRef.current =
+          audioContext.createMediaElementSource(audioElement);
+        analyserRef.current = audioContext.createAnalyser();
+        analyserRef.current.fftSize = 512; // Smaller FFT size for faster response
+
+        // Connect nodes: source -> analyser -> destination
+        mediaSourceRef.current.connect(analyserRef.current);
+        analyserRef.current.connect(audioContext.destination);
+      } catch (error) {
+        console.error("Error creating media source or analyser:", error);
+      }
+    }
+
+    // Start flashing when audio plays
+    const handlePlay = () => {
+      if (audioContext.state === "suspended") {
+        audioContext.resume(); // Resume context on user interaction
+      }
+      if (!animationFrameRef.current) {
+        flashBackground();
+      }
+    };
+
+    // Stop flashing when audio ends
+    const handleEnd = () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      document.body.style.backgroundColor = "#1a1a1a"; // Reset to base color
+
+      mediaStreamTrackRef.current?.applyConstraints({
+        advanced: [{ torch: false }],
+      });
+
+      audioElement?.pause();
+    };
+
+    audioElement.addEventListener("play", handlePlay);
+    audioElement.addEventListener("pause", handleEnd);
+
+    // Cleanup on unmount
+    return () => {
+      audioElement.removeEventListener("play", handlePlay);
+      audioElement.removeEventListener("pause", handleEnd);
+
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (mediaSourceRef.current) {
+        mediaSourceRef.current.disconnect();
+        mediaSourceRef.current = null;
+      }
+      if (analyserRef.current) {
+        analyserRef.current.disconnect();
+        analyserRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      document.body.style.backgroundColor = ""; // Reset to default
+    };
+  }, []);
 
   useEffect(() => {
     if (SUPPORTS_MEDIA_DEVICES) {
@@ -37,35 +159,43 @@ function App() {
             const imageCapture = new ImageCapture(track);
             imageCapture.getPhotoCapabilities().then(() => {
               //let there be light!
-              trackRef.current = track;
+              mediaStreamTrackRef.current = track;
             });
           });
       });
     }
   }, []);
 
-  const onTase = async () => {
-    if (ref.current && trackRef.current) {
-      trackRef.current.applyConstraints({
-        advanced: [{ torch: true }],
-      });
-      await ref.current.play();
+  const onClick = async () => {
+    if (audioRef.current) {
+      audioRef.current.play();
+    }
+  };
 
-      ref.current.onpause = () => {
-        if (trackRef.current) {
-          trackRef.current.applyConstraints({
-            advanced: [{ torch: false }],
-          });
-        }
-      };
+  const onMouseDown = async () => {
+    if (audioRef.current) {
+      audioRef.current.loop = true;
+      await audioRef.current.play();
+    }
+  };
+
+  const onMouseUp = async () => {
+    if (audioRef.current) {
+      audioRef.current.loop = false;
+      audioRef.current.pause();
     }
   };
 
   return (
     <>
-      <audio ref={ref} src="/tase.mp3" />
+      <audio ref={audioRef} src="/tase.mp3" />
 
-      <button onClick={onTase}>Tase</button>
+      <div
+        className="trigger"
+        onClick={onClick}
+        onPointerUp={onMouseUp}
+        onPointerDown={onMouseDown}
+      />
     </>
   );
 }

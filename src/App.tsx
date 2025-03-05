@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const SUPPORTS_MEDIA_DEVICES = "mediaDevices" in navigator;
 
 function App() {
   // Define typed refs
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(
+    null
+  );
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -15,7 +17,7 @@ function App() {
   const holdTimer = useRef<number | null>(null);
 
   // Function to update background with frequency-based flashing
-  const flashBackground = () => {
+  const flashBackground = useCallback(() => {
     const analyser = analyserRef.current;
     if (!analyser) return;
 
@@ -52,10 +54,9 @@ function App() {
 
     // Keep the animation running
     animationFrameRef.current = requestAnimationFrame(flashBackground);
-  };
+  }, []);
 
   useEffect(() => {
-    const audioElement = audioRef.current;
     if (!audioElement) return;
 
     // Initialize AudioContext and nodes
@@ -125,7 +126,7 @@ function App() {
       }
       document.body.style.backgroundColor = ""; // Reset to default
     };
-  }, []);
+  }, [audioElement, flashBackground]);
 
   useEffect(() => {
     if (SUPPORTS_MEDIA_DEVICES) {
@@ -166,9 +167,9 @@ function App() {
 
   const onMouseDown = () => {
     holdTimer.current = setTimeout(async () => {
-      if (audioRef.current) {
-        await audioRef.current.play();
-        audioRef.current.loop = true;
+      if (audioElement) {
+        await audioElement.play();
+        audioElement.loop = true;
       }
     }, 100);
   };
@@ -178,15 +179,15 @@ function App() {
       clearTimeout(holdTimer.current);
     }
 
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.loop = false;
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.loop = false;
     }
   };
 
   return (
     <>
-      <audio ref={audioRef} src="/tase.mp3" />
+      <audio ref={setAudioElement} src="/tase.mp3" />
 
       <div
         className="trigger"

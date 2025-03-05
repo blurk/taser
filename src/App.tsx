@@ -3,10 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const SUPPORTS_MEDIA_DEVICES = "mediaDevices" in navigator;
 
 function App() {
-  // Define typed refs
+  // Somehow, using useState instead of useRefs remove the bug: HTMLMediaElement already connected previously to a different MediaElementSourceNode in strict mode...
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(
     null
   );
+
+  // Define typed refs
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);

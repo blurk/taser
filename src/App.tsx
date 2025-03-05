@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 const SUPPORTS_MEDIA_DEVICES = "mediaDevices" in navigator;
 

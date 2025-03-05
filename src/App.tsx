@@ -12,6 +12,8 @@ function App() {
 
   const mediaStreamTrackRef = useRef<MediaStreamTrack | null>(null);
 
+  const holdTimer = useRef<number | null>(null);
+
   // Function to update background with frequency-based flashing
   const flashBackground = () => {
     const analyser = analyserRef.current;
@@ -95,10 +97,6 @@ function App() {
       }
       document.body.style.backgroundColor = "#1a1a1a"; // Reset to base color
 
-      mediaStreamTrackRef.current?.applyConstraints({
-        advanced: [{ torch: false }],
-      });
-
       audioElement?.pause();
     };
 
@@ -166,23 +164,23 @@ function App() {
     }
   }, []);
 
-  const onClick = async () => {
-    if (audioRef.current) {
-      audioRef.current.play();
-    }
-  };
-
-  const onMouseDown = async () => {
-    if (audioRef.current) {
-      audioRef.current.loop = true;
-      await audioRef.current.play();
-    }
+  const onMouseDown = () => {
+    holdTimer.current = setTimeout(async () => {
+      if (audioRef.current) {
+        await audioRef.current.play();
+        audioRef.current.loop = true;
+      }
+    }, 100);
   };
 
   const onMouseUp = async () => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+    }
+
     if (audioRef.current) {
-      audioRef.current.loop = false;
       audioRef.current.pause();
+      audioRef.current.loop = false;
     }
   };
 
@@ -192,7 +190,6 @@ function App() {
 
       <div
         className="trigger"
-        onClick={onClick}
         onPointerUp={onMouseUp}
         onPointerDown={onMouseDown}
       />
